@@ -15,6 +15,7 @@ class GraphState(TypedDict):
     conversation_history: List[Dict[str, str]]
     
     # Agent outputs
+    route: str
     intent: Optional[IntentClassification]
     entities: Optional[ExtractedEntities]
     final_response: str

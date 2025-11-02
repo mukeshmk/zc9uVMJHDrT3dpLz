@@ -5,7 +5,7 @@ from langgraph.graph import StateGraph, END, START
 
 from convai.utils.config import settings
 from convai.graph.state import GraphState
-from convai.graph.nodes import IntentExtractor, EntityExtractor, Agent
+from convai.graph.nodes import SmartRouter, IntentExtractor, EntityExtractor, Agent
 
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ class MovieAgentGraph:
             raise
         
         logger.debug("Initializing graph agent")
+        self.smart_router = SmartRouter(self.llm)
         self.intent_agent = IntentExtractor(self.llm)
         self.entity_agent = EntityExtractor(self.llm)
         self.tool_agent = Agent(self.llm)
@@ -66,14 +67,31 @@ class MovieAgentGraph:
 
         builder = StateGraph(GraphState)
         
+        builder.add_node("smart_router", self._smart_router_node)
         builder.add_node("intent_classification", self._intent_node)
         builder.add_node("entity_extraction", self._entity_node)
         builder.add_node("tool_calling_agent", self._agent_node)
         builder.add_node("error_handler", self._error_node)
+        builder.add_node("ask_clarification", self._clarification_node)
         
         # START -> Smart Router Node
-        builder.add_edge(START, "intent_classification")
+        builder.add_edge(START, "smart_router")
         
+        # Smart Router -> Intent Classification (conditional based need for clarification)
+        builder.add_conditional_edges(
+            "smart_router",
+            self._router_decision,
+            {
+                "intent_classification": "intent_classification",
+                "ask_clarification": "ask_clarification",
+                "error": "error_handler"
+            }
+        )
+
+        # Smart Router -> END
+        builder.add_edge("ask_clarification", END)
+        
+        # Intent -> Entity (conditional based on errors)
         builder.add_conditional_edges(
             "intent_classification",
             self._check_for_errors,
@@ -111,6 +129,11 @@ class MovieAgentGraph:
         compiled_graph = builder.compile()
         logger.debug("Graph workflow compiled successfully")
         return compiled_graph
+    
+    def _smart_router_node(self, state: GraphState) -> GraphState:
+        """Execute Router node."""
+        logger.info("Executing Router node")
+        return self.smart_router.route_query(state)
 
     def _intent_node(self, state: GraphState) -> GraphState:
         """Intent Classification node."""
@@ -121,12 +144,12 @@ class MovieAgentGraph:
         """Entity Extraction node."""
         logger.info("Executing Entity Extraction node")
         return self.entity_agent.extract_entities(state)
-            
+    
     def _agent_node(self, state: GraphState) -> GraphState:
         """Tool Calling Agent node."""
         logger.info("Executing Tool Calling Agent node")
         return self.tool_agent.generate_and_execute(state)
-
+    
     def _error_node(self, state: GraphState) -> GraphState:
         """Error Handling node."""
         logger.error(f"Error occurred: {state.get('error')}")
@@ -150,8 +173,29 @@ class MovieAgentGraph:
             return "error"
         logger.debug("No errors detected, continuing workflow")
         return "continue"
+    
+    def _router_decision(self, state: GraphState) -> str:
+        """
+        Determine next node based on Router decision
+        """
+        route = state.get("route", "ask_clarification")
+        logger.debug(f"Router decision: routing to {route}")
+        return route
 
+    def _clarification_node(self, state: GraphState) -> GraphState:
+        """
+        Handle clarification request
+        """
+        logger.info("Processing clarification request")
+        clarification_message = state.get(
+            "final_response",
+            "Please ask a question about movies. For example: 'What are the top-rated movies?' or 'Show me action movies'"
+        )
+        state["final_response"] = clarification_message
+        logger.debug(f"Clarification message set: {clarification_message}")
+        return state
 
+    
     def query(self, user_query: str, conversation_history: List[Dict[str, str]]) -> str:
         """
         Process a user query through the multi-agent workflow.
@@ -163,10 +207,10 @@ class MovieAgentGraph:
         Returns:
             The final response based on the User's Query and Previous Coversation History
         """
-
         # Initialize state
         initial_state: GraphState = {
             "user_query": user_query,
+            "route": None,
             "conversation_history": conversation_history or [],
             "intent": None,
             "entities": None,
@@ -175,12 +219,12 @@ class MovieAgentGraph:
         }
         
         logger.info(f"Processing query: {user_query}")
-        logger.debug(f"Initial state: intent={initial_state.get('intent')}, entities={initial_state.get('entities')}")
+        logger.debug(f"Initial state: route={initial_state.get('route')}, intent={initial_state.get('intent')}, entities={initial_state.get('entities')}")
         
         # Execute graph
         try:
             final_state = self.graph.invoke(initial_state)
-            logger.debug(f"Graph execution completed.")
+            logger.debug(f"Graph execution completed. Final route: {final_state.get('route')}, Error: {final_state.get('error')}")
         except Exception as e:
             logger.error(f"Error during graph execution: {e}", exc_info=True)
             raise
@@ -192,4 +236,3 @@ class MovieAgentGraph:
         logger.debug(f"Final response length: {len(response)} characters")
         
         return response
-
