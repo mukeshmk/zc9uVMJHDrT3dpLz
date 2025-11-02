@@ -1,6 +1,6 @@
 from enum import Enum
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -72,3 +72,16 @@ class IntentClassification(BaseModel):
     intent: IntentType = Field(..., description="The classified intent type")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score between 0 and 1")
     reasoning: str = Field(..., description="Brief explanation of why this intent was chosen")
+
+
+class ExtractedEntities(BaseModel):
+    """
+    Structured entities extracted from User Query.
+    """
+    movie_titles: List[str] = Field(default_factory=list, description="List of movie names mentioned in the query")
+    genres: List[str] = Field(default_factory=list, description="List of genres mentioned (e.g., Action, Comedy, Drama)")
+    year_min: Optional[int] = Field(None, description="Minimum year for movie release date")
+    year_max: Optional[int] = Field(None, description="Maximum year for movie release date")
+    rating_preference: Optional[str] = Field(None, description="Rating preference description (e.g., 'highly rated', 'top rated')")
+    min_rating: Optional[float] = Field(None, ge=1.0, le=5.0, description="Minimum rating threshold on 1-5 scale")
+

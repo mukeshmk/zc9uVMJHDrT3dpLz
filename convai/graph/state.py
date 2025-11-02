@@ -1,7 +1,7 @@
 from typing import Dict, List, TypedDict, Optional
 from langchain_core.messages import HumanMessage
 
-from convai.data.schemas import IntentClassification
+from convai.data.schemas import IntentClassification, ExtractedEntities
 
 
 class GraphState(TypedDict):
@@ -16,6 +16,7 @@ class GraphState(TypedDict):
     
     # Agent outputs
     intent: Optional[IntentClassification]
+    entities: Optional[ExtractedEntities]
     final_response: str
     
     # Error handling

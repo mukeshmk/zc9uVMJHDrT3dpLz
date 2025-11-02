@@ -5,7 +5,7 @@ from langgraph.graph import StateGraph, END, START
 
 from convai.utils.config import settings
 from convai.graph.state import GraphState
-from convai.graph.nodes import IntentExtractor
+from convai.graph.nodes import IntentExtractor, EntityExtractor
 
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,7 @@ class MovieAgentGraph:
         
         logger.debug("Initializing graph agent")
         self.intent_agent = IntentExtractor(self.llm)
+        self.entity_agent = EntityExtractor(self.llm)
         logger.debug("All agents initialized successfully")
         
         logger.debug("Building graph workflow")
@@ -65,14 +66,24 @@ class MovieAgentGraph:
         builder = StateGraph(GraphState)
         
         builder.add_node("intent_classification", self._intent_node)
+        builder.add_node("entity_extraction", self._entity_node)
         builder.add_node("error_handler", self._error_node)
         
         # START -> Smart Router Node
         builder.add_edge(START, "intent_classification")
         
-        # Intent -> END (conditional based on errors)
         builder.add_conditional_edges(
             "intent_classification",
+            self._check_for_errors,
+            {
+                "continue": "entity_extraction",
+                "error": "error_handler"
+            }
+        )
+        
+        # Entity -> END (conditional based on errors)
+        builder.add_conditional_edges(
+            "entity_extraction",
             self._check_for_errors,
             {
                 "continue": END,
@@ -93,6 +104,11 @@ class MovieAgentGraph:
         """Intent Classification node."""
         logger.info("Executing Intent Classification node")
         return self.intent_agent.classify_intent(state)
+    
+    def _entity_node(self, state: GraphState) -> GraphState:
+        """Entity Extraction node."""
+        logger.info("Executing Entity Extraction node")
+        return self.entity_agent.extract_entities(state)
     
     
     def _error_node(self, state: GraphState) -> GraphState:
@@ -137,9 +153,9 @@ class MovieAgentGraph:
             "user_query": user_query,
             "conversation_history": conversation_history or [],
             "intent": None,
+            "entities": None,
             "final_response": None,
             "error": None,
-            "retry_count": 0
         }
         
         logger.info(f"Processing query: {user_query}")
