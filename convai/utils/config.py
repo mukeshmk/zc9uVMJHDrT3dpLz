@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     API_VERSION: str = "1.0.0"
     HOST: str = "0.0.0.0"
     PORT: float = 8000
+    
+    # Project Infomation
+    PROJECT_ROOT: Path = Path(__file__).parent.parent.parent
+    PROMPTS_DIR: Path = PROJECT_ROOT / "convai" / "prompts"
 
     # Logging Configuration
     LOG_LEVEL: str = "debug"

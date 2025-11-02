@@ -1,3 +1,4 @@
+from enum import Enum
 from uuid import UUID
 from typing import List
 from datetime import datetime
@@ -47,3 +48,27 @@ class MessagesHistoryResponse(BaseModel):
     Response model for message history
     """
     messages: List[ChatMessage] = Field(..., description="List of messages in the conversation")
+
+
+# LLM Output Formats
+
+class IntentType(str, Enum):
+    """
+    Enumeration of possible User Intents.
+    """
+    RECOMMENDATION = "RECOMMENDATION"
+    SPECIFIC_MOVIE = "SPECIFIC_MOVIE"
+    GENRE_EXPLORATION = "GENRE_EXPLORATION"
+    COMPARISON = "COMPARISON"
+    TOP_RATED = "TOP_RATED"
+    SIMILAR_MOVIES = "SIMILAR_MOVIES"
+    GENERAL_QUESTION = "GENERAL_QUESTION"
+
+
+class IntentClassification(BaseModel):
+    """
+    Intent classification result from the Intent Agent based on User Query.
+    """
+    intent: IntentType = Field(..., description="The classified intent type")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score between 0 and 1")
+    reasoning: str = Field(..., description="Brief explanation of why this intent was chosen")
