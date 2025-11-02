@@ -1,4 +1,5 @@
 import logging
+from typing import Dict, List
 from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 
@@ -40,15 +41,16 @@ class MovieAgentGraph:
             logger.error(f"Failed to initialize LLM: {e}", exc_info=True)
             raise
     
-    def query(self, user_query: str) -> str:
+    def query(self, user_query: str, conversation_history: List[Dict[str, str]]) -> str:
         """
         Process a user query through the multi-agent workflow.
         
         Args:
             user_query: User's movie-related question
+            conversation_history: User's previous coversation history with the agent
             
         Returns:
-            The final response
+            The final response based on the User's Query and Previous Coversation History
         """
 
         prompt = """
