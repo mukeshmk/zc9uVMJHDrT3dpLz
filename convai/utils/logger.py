@@ -40,12 +40,25 @@ def setup_logs(logger):
     sh.setLevel(cli_level)
     sh.setFormatter(formatter)
     logger.addHandler(sh)
+
+    # Configure Uvicorn/FastAPI loggers
+    uvicorn_access = logging.getLogger("uvicorn.access")
+    uvicorn_access.setLevel(cli_level)
+    uvicorn_access.handlers = []
+    uvicorn_access.addHandler(sh)
+
+    uvicorn_error = logging.getLogger("uvicorn.error")
+    uvicorn_error.setLevel(cli_level)
+    uvicorn_error.handlers = []
+    uvicorn_error.addHandler(sh)
     
     if log_file:
         fh = logging.FileHandler(log_file, mode="w")
         fh.setLevel(file_level)
         fh.setFormatter(formatter)
         logger.addHandler(fh)
+        uvicorn_access.addHandler(fh)
+        uvicorn_error.addHandler(fh)
     
     return logger
 
