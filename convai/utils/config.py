@@ -1,0 +1,32 @@
+from pathlib import Path
+from typing import Optional
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    """Application configuration settings."""
+
+    # API Configuration
+    API_TITLE: str = "Conversation AI"
+    API_VERSION: str = "1.0.0"
+    HOST: str = "0.0.0.0"
+    PORT: float = 8000
+
+    # Logging Configuration
+    LOG_LEVEL: str = "debug"
+    LOG_FILE: Optional[str] = None
+    LOG_FILE_LEVEL: Optional[str] = None
+    
+    # Database Configuration
+    DATABASE_URL: str = "sqlite:///./movielens.db"
+    
+    # Dataset Url
+    MOVIELENS_DOWNLOAD_URL: str = "https://files.grouplens.org/datasets/movielens/ml-100k.zip"
+    
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = True
+
+
+settings = Settings()
