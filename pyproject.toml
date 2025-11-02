@@ -1,7 +1,22 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "zc9uvmjhdrt3dplz"
+name = "convai"
 version = "0.1.0"
-description = "Add your description here"
+description = "a REST API for a conversational AI virtual agent that can answer questions about movies using an open movie dataset."
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+authors = [
+    {name = "Mukesh Arambakam", email = "amukesh.mk@gmail.com"}
+]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["convai*"]
+exclude = ["tests*"]
