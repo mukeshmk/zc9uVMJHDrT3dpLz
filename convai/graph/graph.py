@@ -5,7 +5,7 @@ from langgraph.graph import StateGraph, END, START
 
 from convai.utils.config import settings
 from convai.graph.state import GraphState
-from convai.graph.nodes import IntentExtractor, EntityExtractor
+from convai.graph.nodes import IntentExtractor, EntityExtractor, Agent
 
 
 logger = logging.getLogger(__name__)
@@ -47,6 +47,7 @@ class MovieAgentGraph:
         logger.debug("Initializing graph agent")
         self.intent_agent = IntentExtractor(self.llm)
         self.entity_agent = EntityExtractor(self.llm)
+        self.tool_agent = Agent(self.llm)
         logger.debug("All agents initialized successfully")
         
         logger.debug("Building graph workflow")
@@ -67,6 +68,7 @@ class MovieAgentGraph:
         
         builder.add_node("intent_classification", self._intent_node)
         builder.add_node("entity_extraction", self._entity_node)
+        builder.add_node("tool_calling_agent", self._agent_node)
         builder.add_node("error_handler", self._error_node)
         
         # START -> Smart Router Node
@@ -81,9 +83,19 @@ class MovieAgentGraph:
             }
         )
         
-        # Entity -> END (conditional based on errors)
+        # Entity -> Tool Calling Agent (conditional based on errors)
         builder.add_conditional_edges(
             "entity_extraction",
+            self._check_for_errors,
+            {
+                "continue": "tool_calling_agent",
+                "error": "error_handler"
+            }
+        )
+        
+        # Tool Calling Agent -> END or error
+        builder.add_conditional_edges(
+            "tool_calling_agent",
             self._check_for_errors,
             {
                 "continue": END,
@@ -109,8 +121,12 @@ class MovieAgentGraph:
         """Entity Extraction node."""
         logger.info("Executing Entity Extraction node")
         return self.entity_agent.extract_entities(state)
-    
-    
+            
+    def _agent_node(self, state: GraphState) -> GraphState:
+        """Tool Calling Agent node."""
+        logger.info("Executing Tool Calling Agent node")
+        return self.tool_agent.generate_and_execute(state)
+
     def _error_node(self, state: GraphState) -> GraphState:
         """Error Handling node."""
         logger.error(f"Error occurred: {state.get('error')}")
