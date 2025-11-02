@@ -28,10 +28,31 @@ class Agent:
         self.db = SQLDatabase.from_uri(settings.DATABASE_URL)
         toolkit = SQLDatabaseToolkit(db=self.db, llm=self.llm)
 
+        def custom_prompt(request: ModelRequest) -> str:
+            intent = request.runtime.context.get("intent", None)
+            entities = request.runtime.context.get("entities", None)
+            user_query = request.runtime.context.get("user_query", None)
+            conversation_history = request.runtime.context.get("conversation_history", None)
+
+            system_message = self._get_agent_system_prompt()
+            prompt = system_message.format(
+                dialect=self.db.dialect, 
+                top_k=5,
+                intent=intent,
+                entities=entities,
+                user_query=user_query,
+                conversation_history=conversation_history,
+            )
+            return prompt
+        
+        custom_prompt = dynamic_prompt(custom_prompt)
+
         self.agent = create_agent(
             model=self.llm, 
             tools=toolkit.get_tools(),
-            system_prompt=self._get_agent_system_prompt()
+            middleware=[
+                custom_prompt
+            ]
         )
         
         logger.info("Tool Calling Agent initialized")
@@ -62,20 +83,30 @@ class Agent:
             logger.info("Generating SQL query and User Response")
             logger.debug(f"SQL generation context - Intent: {state['intent'].intent.value}, Entities: {state['entities']}")
 
-            result = self.agent.invoke(
+            result = []
+            step_count = 0
+            for step in self.agent.stream(
                 {
                     "messages": [{
                         "role": "user", 
-                        "content": f"USER_QUERY: {state['user_query']}\nINTENT: {state['intent'].intent.value}\nENTITIES: {state['entities']}"
+                        "content": state["user_query"]
                     }]
+                },
+                context={
+                    "intent": state['intent'].intent.value,
+                    "entities": state["entities"],
+                    "user_query": state["user_query"],
+                    "conversation_history": state["conversation_history"],
                 }
-            )
+            ):
+                result.append(step)
+                step_count += 1
+                logger.debug(f"Tool Calling Agent step {step_count}: {json.dumps(step, indent=2, default=str)}")
 
-
-            print(result)
-            res: AIMessage = result["messages"][-1]            
+            res: AIMessage = result[-1]["model"]["messages"][-1]            
             state["final_response"] = res.content
             
+            logger.info(f"Tool Calling Agent completed successfully after {step_count} steps")
             logger.debug(f"Generated response length: {len(res.content)} characters")
             return state
             

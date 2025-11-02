@@ -175,7 +175,7 @@ class MovieAgentGraph:
         }
         
         logger.info(f"Processing query: {user_query}")
-        logger.debug(f"Initial state: intent={initial_state.get('intent')}")
+        logger.debug(f"Initial state: intent={initial_state.get('intent')}, entities={initial_state.get('entities')}")
         
         # Execute graph
         try:
@@ -188,7 +188,7 @@ class MovieAgentGraph:
         logger.info("Query processing complete")
         
         # Extract final response
-        response = "sample response"
+        response = final_state.get("final_response", "")
         logger.debug(f"Final response length: {len(response)} characters")
         
         return response

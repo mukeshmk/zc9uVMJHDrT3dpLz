@@ -206,4 +206,5 @@ if __name__ == "__main__":
         app, 
         host=settings.HOST, 
         port=settings.PORT,
+        log_config=None,
     )
