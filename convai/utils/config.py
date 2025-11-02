@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     
     # Dataset Url
     MOVIELENS_DOWNLOAD_URL: str = "https://files.grouplens.org/datasets/movielens/ml-100k.zip"
+
+    # LLM Information
+    MODEL_PROVIDER: str = "ollama"
+    MODEL_NAME: str = "qwen3:8b"
+    MODEL_TEMPERATURE: float = 0.0
     
     class Config:
         env_file = ".env"

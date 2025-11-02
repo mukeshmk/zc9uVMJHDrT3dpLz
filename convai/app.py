@@ -10,6 +10,7 @@ from convai.data.schemas import (
     ChatMessageRequest,
     MessageResponse,
 )
+from convai.graph.graph import MovieAgentGraph
 
 
 
@@ -22,12 +23,17 @@ app = FastAPI(
         about movies using an open movie dataset.",
 )
 
+agent_graph = MovieAgentGraph()
+
 
 def generate_assistant_response(user_message: str) -> str:
     """
     Placeholder for actual AI/LLM integration
-    """    
-    return "Hello, world!"
+    """
+    logger.debug(f"Generating assistant response")
+    response = agent_graph.query(user_message)
+    logger.info(f"Successfully generated assistant response") 
+    return response
 
 
 @app.post(
