@@ -74,14 +74,17 @@ class RouterDecision(BaseModel):
     reason: str = Field(..., description="Explanation for why this route was chosen")
     clarification_message: str = Field(default="", description="Message to ask user for clarification if routed to ask_clarification")
 
-    @validator("confidence", pre=True)
+    @validator("confidence", pre=True, always=True)
     def validate_confidence(cls, v):
+        """Convert string confidence values to float."""
         if isinstance(v, str):
             try:
-                return float(v)
+                v = float(v)
             except ValueError:
-                raise ValueError("Confidence must be a number")
-        return v
+                raise ValueError("Confidence must be a valid number")
+        if not isinstance(v, (int, float)):
+            raise ValueError(f"Confidence must be a number, got {type(v)}")
+        return float(v)
 
 
 class IntentClassification(BaseModel):
@@ -92,14 +95,17 @@ class IntentClassification(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score between 0 and 1")
     reasoning: str = Field(..., description="Brief explanation of why this intent was chosen")
 
-    @validator("confidence", pre=True)
+    @validator("confidence", pre=True, always=True)
     def validate_confidence(cls, v):
+        """Convert string confidence values to float."""
         if isinstance(v, str):
             try:
-                return float(v)
+                v = float(v)
             except ValueError:
-                raise ValueError("Confidence must be a number")
-        return v
+                raise ValueError("Confidence must be a valid number")
+        if not isinstance(v, (int, float)):
+            raise ValueError(f"Confidence must be a number, got {type(v)}")
+        return float(v)
 
 
 class ExtractedEntities(BaseModel):
