@@ -37,7 +37,8 @@ class MovieAgentGraph:
             self.llm = init_chat_model(
                 model=model_name, 
                 model_provider=model_provider,
-                temperature=temperature
+                temperature=temperature,
+                api_key=settings.API_KEY
             )
             logger.debug(f"LLM initialized successfully: {model_name}")
         except Exception as e:

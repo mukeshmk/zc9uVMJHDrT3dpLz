@@ -1,8 +1,8 @@
 from enum import Enum
 from uuid import UUID
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Union
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 # Request Models
 
@@ -74,6 +74,15 @@ class RouterDecision(BaseModel):
     reason: str = Field(..., description="Explanation for why this route was chosen")
     clarification_message: str = Field(default="", description="Message to ask user for clarification if routed to ask_clarification")
 
+    @validator("confidence", pre=True)
+    def validate_confidence(cls, v):
+        if isinstance(v, str):
+            try:
+                return float(v)
+            except ValueError:
+                raise ValueError("Confidence must be a number")
+        return v
+
 
 class IntentClassification(BaseModel):
     """
@@ -82,6 +91,15 @@ class IntentClassification(BaseModel):
     intent: IntentType = Field(..., description="The classified intent type")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score between 0 and 1")
     reasoning: str = Field(..., description="Brief explanation of why this intent was chosen")
+
+    @validator("confidence", pre=True)
+    def validate_confidence(cls, v):
+        if isinstance(v, str):
+            try:
+                return float(v)
+            except ValueError:
+                raise ValueError("Confidence must be a number")
+        return v
 
 
 class ExtractedEntities(BaseModel):
