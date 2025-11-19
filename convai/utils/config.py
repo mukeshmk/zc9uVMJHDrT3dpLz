@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     MODEL_NAME: str = "meta-llama/llama-4-scout-17b-16e-instruct"
     MODEL_TEMPERATURE: float = 0.0
     API_KEY: Optional[str] = None
+
+    # MCP Server Configuration
+    MCP_SERVER: Optional[str] = "http://127.0.0.1:8001/mcp"
     
     class Config:
         env_file = ".env"
