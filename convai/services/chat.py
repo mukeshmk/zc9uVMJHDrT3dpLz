@@ -45,7 +45,7 @@ class ChatService:
             created_at=created_at
         )
 
-    def process_message(self, session_id: UUID, message: str) -> MessageResponse:
+    async def process_message(self, session_id: UUID, message: str) -> MessageResponse:
         """
         Process a user message and generate a response.
         """
@@ -70,7 +70,7 @@ class ChatService:
         conversation_history = format_history_for_llm(history)
 
         try:
-            assistant_response = self.agent_graph.query(message, conversation_history)
+            assistant_response = await self.agent_graph.query(message, conversation_history)
             logger.info(f"Successfully generated assistant response for session {session_id}")
             
             # Create assistant message

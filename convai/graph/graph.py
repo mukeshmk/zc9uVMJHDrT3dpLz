@@ -5,7 +5,13 @@ from langgraph.graph import StateGraph, END, START
 
 from convai.utils.config import settings
 from convai.graph.state import GraphState
-from convai.graph.nodes import SmartRouter, IntentExtractor, EntityExtractor, Agent
+from convai.graph.nodes import (
+    SmartRouter,
+    IntentExtractor,
+    EntityExtractor,
+    WeatherAgent,
+    Agent
+)
 
 
 logger = logging.getLogger(__name__)
@@ -50,6 +56,7 @@ class MovieAgentGraph:
         self.intent_agent = IntentExtractor(self.llm)
         self.entity_agent = EntityExtractor(self.llm)
         self.tool_agent = Agent(self.llm)
+        self.weather_agent = WeatherAgent(self.llm)
         logger.debug("All agents initialized successfully")
         
         logger.debug("Building graph workflow")
@@ -74,6 +81,7 @@ class MovieAgentGraph:
         builder.add_node("tool_calling_agent", self._agent_node)
         builder.add_node("error_handler", self._error_node)
         builder.add_node("ask_clarification", self._clarification_node)
+        builder.add_node("weather_agent", self._weather_node)
         
         # START -> Smart Router Node
         builder.add_edge(START, "smart_router")
@@ -85,6 +93,7 @@ class MovieAgentGraph:
             {
                 "intent_classification": "intent_classification",
                 "ask_clarification": "ask_clarification",
+                "weather": "weather_agent",
                 "error": "error_handler"
             }
         )
@@ -122,6 +131,9 @@ class MovieAgentGraph:
             }
         )
         
+        # Weather Agent -> END
+        builder.add_edge("weather_agent", END)
+
         # Error handler -> END
         builder.add_edge("error_handler", END)
         
@@ -196,8 +208,12 @@ class MovieAgentGraph:
         logger.debug(f"Clarification message set: {clarification_message}")
         return state
 
+    async def _weather_node(self, state: GraphState) -> GraphState:
+        """Weather Agent node."""
+        logger.info("Executing Weather Agent node")
+        return await self.weather_agent.get_weather(state)
     
-    def query(self, user_query: str, conversation_history: List[Dict[str, str]]) -> str:
+    async def query(self, user_query: str, conversation_history: List[Dict[str, str]]) -> str:
         """
         Process a user query through the multi-agent workflow.
         
@@ -224,7 +240,7 @@ class MovieAgentGraph:
         
         # Execute graph
         try:
-            final_state = self.graph.invoke(initial_state)
+            final_state = await self.graph.ainvoke(initial_state)
             logger.debug(f"Graph execution completed. Final route: {final_state.get('route')}, Error: {final_state.get('error')}")
         except Exception as e:
             logger.error(f"Error during graph execution: {e}", exc_info=True)
@@ -234,6 +250,9 @@ class MovieAgentGraph:
         
         # Extract final response
         response = final_state.get("final_response", "")
-        logger.debug(f"Final response length: {len(response)} characters")
+        if response:
+            logger.debug(f"Final response length: {len(response)} characters")
+        else:
+            logger.debug("Final response is empty or None")
         
         return response

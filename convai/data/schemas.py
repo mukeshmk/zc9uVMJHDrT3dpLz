@@ -69,7 +69,7 @@ class RouterDecision(BaseModel):
     """
     Model for router node decision output
     """
-    route: Literal["intent_classification", "ask_clarification"]
+    route: Literal["intent_classification", "ask_clarification", "weather"]
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score of the routing decision (0.0-1.0)")
     reason: str = Field(..., description="Explanation for why this route was chosen")
     clarification_message: str = Field(default="", description="Message to ask user for clarification if routed to ask_clarification")

@@ -61,7 +61,7 @@ async def send_message(
         MessageResponse containing the message ID, user message, 
         assistant response, and timestamp
     """
-    return chat_service.process_message(session_id, request.message)
+    return await chat_service.process_message(session_id, request.message)
 
 
 @app.get(
