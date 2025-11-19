@@ -71,3 +71,5 @@ xxhash==3.6.0
 yarl==1.22.0
 zstandard==0.25.0
 langchain-mcp-adapters==0.1.13
+streamlit==1.51.0
+nest-asyncio==1.6.0
