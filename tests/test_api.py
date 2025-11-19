@@ -1,9 +1,20 @@
 from uuid import uuid4, UUID
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
+import pytest
 
 from convai.app import app
-import convai.app as app_module
+from convai.app import app
+from convai.services.chat import chat_service
+
+
+
+@pytest.fixture(autouse=True)
+def mock_llm():
+    # We don't need to mock init_chat_model anymore as we are not using it in ChatService
+    # But if there are other places using it, we might need it.
+    # For now, let's remove the patch as ChatService doesn't call it.
+    pass
 
 
 
@@ -30,9 +41,13 @@ def test_create_session_success(clean_app_state):
     
     # Verify session was stored
     session_id = UUID(data["session_id"])  # Convert string to UUID
-    assert session_id in app_module.sessions
-    assert session_id in app_module.conversations
-    assert len(app_module.conversations[session_id]) == 0
+    assert session_id in chat_service.sessions
+    assert session_id in chat_service.conversations
+    # Check that memory is initialized and empty
+    # Check that conversation is initialized and empty
+    conversation = chat_service.conversations[session_id]
+    assert isinstance(conversation, list)
+    assert len(conversation) == 0
 
 
 def test_create_multiple_sessions(clean_app_state):
@@ -49,7 +64,7 @@ def test_create_multiple_sessions(clean_app_state):
     session_id2 = response2.json()["session_id"]
     
     assert session_id1 != session_id2
-    assert len(app_module.sessions) == 2
+    assert len(chat_service.sessions) == 2
 
 
 def test_send_message_success(clean_app_state, sample_session_id):
@@ -60,7 +75,7 @@ def test_send_message_success(clean_app_state, sample_session_id):
     session_id = create_response.json()["session_id"]
     
     # Mock the graph query
-    with patch.object(app_module.agent_graph, 'query', return_value="Mock assistant response"):
+    with patch.object(chat_service.agent_graph, 'query', return_value="Mock assistant response"):
         response = client.post(
             f"/api/v1/chat/{session_id}/messages",
             json={"message": "What are the top rated movies?"}
@@ -75,9 +90,16 @@ def test_send_message_success(clean_app_state, sample_session_id):
     
     # Verify messages were stored
     session_id_uuid = UUID(session_id)
-    assert len(app_module.conversations[session_id_uuid]) == 2
-    assert app_module.conversations[session_id_uuid][0].role == "user"
-    assert app_module.conversations[session_id_uuid][1].role == "assistant"
+    # Verify messages were stored in memory
+    session_id_uuid = UUID(session_id)
+    # Verify messages were stored in memory
+    session_id_uuid = UUID(session_id)
+    messages = chat_service.conversations[session_id_uuid]
+    assert len(messages) == 2
+    assert messages[0].role == "user"
+    assert messages[0].content == "What are the top rated movies?"
+    assert messages[1].role == "assistant"
+    assert messages[1].content == "Mock assistant response"
 
 
 def test_send_message_nonexistent_session(clean_app_state):
@@ -129,7 +151,7 @@ def test_send_message_graph_error(clean_app_state):
     session_id = create_response.json()["session_id"]
     
     # Mock graph to raise an error
-    with patch.object(app_module.agent_graph, 'query', side_effect=Exception("Graph error")):
+    with patch.object(chat_service.agent_graph, 'query', side_effect=Exception("Graph error")):
         response = client.post(
             f"/api/v1/chat/{session_id}/messages",
             json={"message": "Test message"}
@@ -145,7 +167,7 @@ def test_send_message_with_conversation_history(clean_app_state):
     create_response = client.post("/api/v1/chat/create")
     session_id = create_response.json()["session_id"]
     
-    with patch.object(app_module.agent_graph, 'query', return_value="Response"):
+    with patch.object(chat_service.agent_graph, 'query', return_value="Response"):
         # Send first message
         response1 = client.post(
             f"/api/v1/chat/{session_id}/messages",
@@ -162,7 +184,12 @@ def test_send_message_with_conversation_history(clean_app_state):
     
     # Verify all messages are stored
     session_id_uuid = UUID(session_id)
-    assert len(app_module.conversations[session_id_uuid]) == 4  # 2 user + 2 assistant
+    # Verify all messages are stored
+    session_id_uuid = UUID(session_id)
+    # Verify all messages are stored
+    session_id_uuid = UUID(session_id)
+    messages = chat_service.conversations[session_id_uuid]
+    assert len(messages) == 4  # 2 user + 2 assistant
 
 
 def test_get_messages_success(clean_app_state):
@@ -172,7 +199,7 @@ def test_get_messages_success(clean_app_state):
     session_id = create_response.json()["session_id"]
     
     # Add some messages
-    with patch.object(app_module.agent_graph, 'query', return_value="Response"):
+    with patch.object(chat_service.agent_graph, 'query', return_value="Response"):
         client.post(
             f"/api/v1/chat/{session_id}/messages",
             json={"message": "Message 1"}
@@ -198,7 +225,7 @@ def test_get_messages_with_limit(clean_app_state):
     session_id = create_response.json()["session_id"]
     
     # Add multiple messages
-    with patch.object(app_module.agent_graph, 'query', return_value="Response"):
+    with patch.object(chat_service.agent_graph, 'query', return_value="Response"):
         for i in range(5):
             client.post(
                 f"/api/v1/chat/{session_id}/messages",

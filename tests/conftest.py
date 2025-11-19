@@ -163,21 +163,21 @@ def app_conversations():
 @pytest.fixture
 def clean_app_state():
     """Clean the app's in-memory state before each test."""
-    import convai.app as app_module
+    from convai.services.chat import chat_service
     
     # Store original values
-    original_sessions = app_module.sessions.copy()
-    original_conversations = app_module.conversations.copy()
+    original_sessions = chat_service.sessions.copy()
+    original_conversations = chat_service.conversations.copy()
     
     # Clear for test
-    app_module.sessions.clear()
-    app_module.conversations.clear()
+    chat_service.sessions.clear()
+    chat_service.conversations.clear()
     
     yield
     
     # Restore after test
-    app_module.sessions.clear()
-    app_module.sessions.update(original_sessions)
-    app_module.conversations.clear()
-    app_module.conversations.update(original_conversations)
+    chat_service.sessions.clear()
+    chat_service.sessions.update(original_sessions)
+    chat_service.conversations.clear()
+    chat_service.conversations.update(original_conversations)
 
