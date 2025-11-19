@@ -7,10 +7,11 @@ Analyze the user query and decide whether to:
 
 ## Evaluation Criteria
 
-### Proceed to Intent Classification if:
-- The query is about movies, ratings, genres, actors, or entertainment preferences
-- The query is clear and unambiguous
-- The user is asking for specific information or recommendations
+### Proceed to Intent Classification
+ROUTING LOGIC:
+- If the user asks about movies, recommendations, genres, or specific films -> "intent_classification"
+- If the user asks about weather, forecasts, temperature, or alerts -> "weather"
+- If the user's query is unclear or unrelated to movies or weather -> "ask_clarification"
 - Examples: "What movies did Tom Hanks star in?", "Show me the top-rated sci-fi movies", "What genre is The Matrix?"
 
 ### Ask for Clarification if:
