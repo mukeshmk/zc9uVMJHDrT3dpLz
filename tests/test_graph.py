@@ -2,7 +2,7 @@
 Unit tests for graph components (MovieAgentGraph).
 """
 import pytest
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock, MagicMock, patch, call, AsyncMock
 from langchain.chat_models import BaseChatModel
 
 from convai.graph import MovieAgentGraph
@@ -86,8 +86,9 @@ class TestMovieAgentGraphQuery:
     @patch('convai.graph.graph.SmartRouter')
     @patch('convai.graph.graph.IntentExtractor')
     @patch('convai.graph.graph.EntityExtractor')
+    @pytest.mark.asyncio
     @patch('convai.graph.graph.Agent')
-    def test_query_successful_execution(
+    async def test_query_successful_execution(
         self,
         mock_agent_class,
         mock_entity_class,
@@ -161,7 +162,7 @@ class TestMovieAgentGraphQuery:
         
         # Initialize and query graph
         graph = MovieAgentGraph()
-        result = graph.query("What are top movies?", [])
+        result = await graph.query("What are top movies?", [])
         
         # Verify result
         assert result == "Here are the top rated movies..."
@@ -170,8 +171,9 @@ class TestMovieAgentGraphQuery:
     @patch('convai.graph.graph.SmartRouter')
     @patch('convai.graph.graph.IntentExtractor')
     @patch('convai.graph.graph.EntityExtractor')
+    @pytest.mark.asyncio
     @patch('convai.graph.graph.Agent')
-    def test_query_ask_clarification_route(
+    async def test_query_ask_clarification_route(
         self,
         mock_agent_class,
         mock_entity_class,
@@ -209,7 +211,7 @@ class TestMovieAgentGraphQuery:
         
         # Initialize and query graph
         graph = MovieAgentGraph()
-        result = graph.query("Hello", [])
+        result = await graph.query("Hello", [])
         
         # Verify clarification message is returned
         assert "Please ask a question about movies" in result or len(result) > 0
@@ -218,8 +220,9 @@ class TestMovieAgentGraphQuery:
     @patch('convai.graph.graph.SmartRouter')
     @patch('convai.graph.graph.IntentExtractor')
     @patch('convai.graph.graph.EntityExtractor')
+    @pytest.mark.asyncio
     @patch('convai.graph.graph.Agent')
-    def test_query_with_error(
+    async def test_query_with_error(
         self,
         mock_agent_class,
         mock_entity_class,
@@ -257,7 +260,7 @@ class TestMovieAgentGraphQuery:
         
         # Initialize and query graph
         graph = MovieAgentGraph()
-        result = graph.query("Test query", [])
+        result = await graph.query("Test query", [])
         
         # Verify error response
         assert "error" in result.lower() or "encountered" in result.lower()
@@ -266,8 +269,9 @@ class TestMovieAgentGraphQuery:
     @patch('convai.graph.graph.SmartRouter')
     @patch('convai.graph.graph.IntentExtractor')
     @patch('convai.graph.graph.EntityExtractor')
+    @pytest.mark.asyncio
     @patch('convai.graph.graph.Agent')
-    def test_query_graph_execution_error(
+    async def test_query_graph_execution_error(
         self,
         mock_agent_class,
         mock_entity_class,
@@ -295,13 +299,13 @@ class TestMovieAgentGraphQuery:
         # Initialize graph
         graph = MovieAgentGraph()
         
-        # Mock graph.invoke to raise an error
+        # Mock graph.ainvoke to raise an error
         graph.graph = MagicMock()
-        graph.graph.invoke.side_effect = Exception("Graph execution failed")
+        graph.graph.ainvoke = AsyncMock(side_effect=Exception("Graph execution failed"))
         
         # Query should raise exception
         with pytest.raises(Exception) as exc_info:
-            graph.query("Test query", [])
+            await graph.query("Test query", [])
         
         assert "Graph execution failed" in str(exc_info.value)
     
@@ -309,8 +313,9 @@ class TestMovieAgentGraphQuery:
     @patch('convai.graph.graph.SmartRouter')
     @patch('convai.graph.graph.IntentExtractor')
     @patch('convai.graph.graph.EntityExtractor')
+    @pytest.mark.asyncio
     @patch('convai.graph.graph.Agent')
-    def test_query_with_conversation_history(
+    async def test_query_with_conversation_history(
         self,
         mock_agent_class,
         mock_entity_class,
@@ -341,7 +346,7 @@ class TestMovieAgentGraphQuery:
         
         # Mock graph execution
         graph.graph = MagicMock()
-        graph.graph.invoke.return_value = {
+        graph.graph.ainvoke = AsyncMock(return_value={
             "user_query": "What are top movies?",
             "route": "intent_classification",
             "conversation_history": sample_conversation_history,
@@ -350,12 +355,12 @@ class TestMovieAgentGraphQuery:
             "final_response": "Response with history",
             "error": None,
             "retry_count": 0
-        }
+        })
         
-        result = graph.query("What are top movies?", sample_conversation_history)
+        result = await graph.query("What are top movies?", sample_conversation_history)
         
         # Verify conversation history was passed to graph
-        call_args = graph.graph.invoke.call_args[0][0]
+        call_args = graph.graph.ainvoke.call_args[0][0]
         assert call_args["conversation_history"] == sample_conversation_history
         assert result == "Response with history"
 
