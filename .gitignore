@@ -11,3 +11,6 @@ wheels/
 
 # SQL Lite Database
 *.db
+
+# Environment variables
+.env
