@@ -26,8 +26,11 @@ class IntentExtractor:
             ("human", "{user_query}"),
         ])
         
+        # Use include_raw=True for better error handling
         self.chain = self.prompt | self.llm.with_structured_output(
-            IntentClassification
+            IntentClassification,
+            include_raw=False,
+            method="function_calling"
         )
         
         logger.info("Intent Extractor initialized")

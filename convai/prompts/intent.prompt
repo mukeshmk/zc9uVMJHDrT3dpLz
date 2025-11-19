@@ -25,10 +25,12 @@ Your task is to analyze the user's query and classify it into one of these inten
 
 Analyze the query carefully and provide:
 - The most appropriate intent
-- Confidence score (0.0-1.0)
+- Confidence score as a NUMERIC VALUE (not a string) between 0.0 and 1.0
 - Brief reasoning for your classification
 
-Format your response as a JSON object with these fields:
+IMPORTANT: The confidence field must be a NUMBER (e.g., 0.8) NOT a string (e.g., "0.8").
+
+Format your response as structured output with these fields:
 - intent: one of the intent types above
-- confidence: float between 0.0 and 1.0
+- confidence: numeric value between 0.0 and 1.0 (NOT a quoted string)
 - reasoning: brief explanation
