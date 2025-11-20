@@ -134,5 +134,19 @@ class ChatService:
         ]
         return MessagesHistoryResponse(messages=pydantic_messages)
 
+    def list_sessions(self, db: Session) -> List[SessionCreateResponse]:
+        """
+        List all available chat sessions.
+        """
+        repo = ChatRepository(db)
+        sessions = repo.get_all_sessions()
+        
+        return [
+            SessionCreateResponse(
+                session_id=UUID(s.session_id),
+                created_at=s.created_at
+            ) for s in sessions
+        ]
+
 # Create a singleton instance
 chat_service = ChatService()
