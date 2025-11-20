@@ -11,7 +11,7 @@ A REST API for a conversational AI virtual agent that can answer questions about
 - **MCP Server Integration**: Extensible Model Context Protocol (MCP) server for weather data with both HTTP and stdio transport support
 - **Weather Agent**: Dedicated agent for weather forecasts and alerts using the National Weather Service API
 - **Streamlit Web UI**: Interactive web-based chat interface for seamless user interaction
-- **Conversational Context**: Maintains conversation history for context-aware responses with in-memory storage
+- **Conversational Context**: Maintains conversation history for context-aware responses with persistent SQLite storage
 - **Asynchronous Processing**: Fully async graph execution and message processing for improved performance
 - **RESTful API**: FastAPI-based REST API with comprehensive endpoints
 - **Multiple LLM Providers**: Support for Ollama (local), OpenAI, and Groq inference models
@@ -34,7 +34,7 @@ The application uses a **service-oriented, multi-agent LangGraph architecture** 
 
 - **ChatService**: Business logic layer that manages:
   - Session creation and tracking
-  - Conversation history (in-memory storage)
+  - Conversation history (persistent SQLite storage)
   - Message processing and coordination with the agent graph
   - Response generation
 
