@@ -1,26 +1,12 @@
 from uuid import uuid4, UUID
 from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
 import pytest
 
-from convai.app import app
-from convai.app import app
 from convai.services.chat import chat_service
+from convai.data.repositories.chat_repository import ChatRepository
 
-
-
-@pytest.fixture(autouse=True)
-def mock_llm():
-    # We don't need to mock init_chat_model anymore as we are not using it in ChatService
-    # But if there are other places using it, we might need it.
-    # For now, let's remove the patch as ChatService doesn't call it.
-    pass
-
-
-
-def test_health_check():
+def test_health_check(client):
     """Test that health check endpoint returns healthy status."""
-    client = TestClient(app)
     response = client.get("/health")
     
     assert response.status_code == 200
@@ -29,9 +15,8 @@ def test_health_check():
     assert "timestamp" in data
 
 
-def test_create_session_success(clean_app_state):
+def test_create_session_success(client, db_session):
     """Test successful session creation."""
-    client = TestClient(app)
     response = client.post("/api/v1/chat/create")
     
     assert response.status_code == 201
@@ -39,21 +24,16 @@ def test_create_session_success(clean_app_state):
     assert "session_id" in data
     assert "created_at" in data
     
-    # Verify session was stored
-    session_id = UUID(data["session_id"])  # Convert string to UUID
-    assert session_id in chat_service.sessions
-    assert session_id in chat_service.conversations
-    # Check that memory is initialized and empty
-    # Check that conversation is initialized and empty
-    conversation = chat_service.conversations[session_id]
-    assert isinstance(conversation, list)
-    assert len(conversation) == 0
+    # Verify session was stored in DB
+    session_id = UUID(data["session_id"])
+    repo = ChatRepository(db_session)
+    session = repo.get_session(session_id)
+    assert session is not None
+    assert str(session.session_id) == str(session_id)
 
 
-def test_create_multiple_sessions(clean_app_state):
+def test_create_multiple_sessions(client, db_session):
     """Test creating multiple unique sessions."""
-    client = TestClient(app)
-    
     response1 = client.post("/api/v1/chat/create")
     response2 = client.post("/api/v1/chat/create")
     
@@ -64,13 +44,17 @@ def test_create_multiple_sessions(clean_app_state):
     session_id2 = response2.json()["session_id"]
     
     assert session_id1 != session_id2
-    assert len(chat_service.sessions) == 2
+    
+    # Verify count in DB
+    # We can query directly or use repo (repo doesn't have count method yet, so query directly)
+    from convai.data.models import ChatSession
+    count = db_session.query(ChatSession).count()
+    assert count == 2
 
 
-def test_send_message_success(clean_app_state, sample_session_id):
+def test_send_message_success(client, db_session):
     """Test successfully sending a message."""
     # Create a session first
-    client = TestClient(app)
     create_response = client.post("/api/v1/chat/create")
     session_id = create_response.json()["session_id"]
     
@@ -88,13 +72,9 @@ def test_send_message_success(clean_app_state, sample_session_id):
     assert data["assistant_response"] == "Mock assistant response"
     assert "timestamp" in data
     
-    # Verify messages were stored
-    session_id_uuid = UUID(session_id)
-    # Verify messages were stored in memory
-    session_id_uuid = UUID(session_id)
-    # Verify messages were stored in memory
-    session_id_uuid = UUID(session_id)
-    messages = chat_service.conversations[session_id_uuid]
+    # Verify messages were stored in DB
+    repo = ChatRepository(db_session)
+    messages = repo.get_messages(UUID(session_id))
     assert len(messages) == 2
     assert messages[0].role == "user"
     assert messages[0].content == "What are the top rated movies?"
@@ -102,9 +82,8 @@ def test_send_message_success(clean_app_state, sample_session_id):
     assert messages[1].content == "Mock assistant response"
 
 
-def test_send_message_nonexistent_session(clean_app_state):
+def test_send_message_nonexistent_session(client):
     """Test sending message to non-existent session."""
-    client = TestClient(app)
     fake_session_id = uuid4()
     
     response = client.post(
@@ -116,9 +95,11 @@ def test_send_message_nonexistent_session(clean_app_state):
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_send_empty_message(clean_app_state, sample_session_id):
+def test_send_empty_message(client):
     """Test sending an empty message."""
-    client = TestClient(app)
+    # We need a valid session ID even if validation fails before checking session, 
+    # but actually Pydantic validation happens before route handler, so session ID validity doesn't matter 
+    # if it's just a path param format check. But let's create one to be safe.
     create_response = client.post("/api/v1/chat/create")
     session_id = create_response.json()["session_id"]
     
@@ -130,9 +111,8 @@ def test_send_empty_message(clean_app_state, sample_session_id):
     assert response.status_code == 422  # Pydantic validation returns 422
 
 
-def test_send_message_no_request_body(clean_app_state):
+def test_send_message_no_request_body(client):
     """Test sending message without request body."""
-    client = TestClient(app)
     create_response = client.post("/api/v1/chat/create")
     session_id = create_response.json()["session_id"]
     
@@ -144,9 +124,8 @@ def test_send_message_no_request_body(clean_app_state):
     assert response.status_code == 422  # Validation error
 
 
-def test_send_message_graph_error(clean_app_state):
+def test_send_message_graph_error(client):
     """Test handling of graph execution errors."""
-    client = TestClient(app)
     create_response = client.post("/api/v1/chat/create")
     session_id = create_response.json()["session_id"]
     
@@ -161,9 +140,8 @@ def test_send_message_graph_error(clean_app_state):
     assert "error" in response.json()["detail"].lower()
 
 
-def test_send_message_with_conversation_history(clean_app_state):
+def test_send_message_with_conversation_history(client, db_session):
     """Test that conversation history is maintained across messages."""
-    client = TestClient(app)
     create_response = client.post("/api/v1/chat/create")
     session_id = create_response.json()["session_id"]
     
@@ -183,18 +161,13 @@ def test_send_message_with_conversation_history(clean_app_state):
         assert response2.status_code == 200
     
     # Verify all messages are stored
-    session_id_uuid = UUID(session_id)
-    # Verify all messages are stored
-    session_id_uuid = UUID(session_id)
-    # Verify all messages are stored
-    session_id_uuid = UUID(session_id)
-    messages = chat_service.conversations[session_id_uuid]
+    repo = ChatRepository(db_session)
+    messages = repo.get_messages(UUID(session_id))
     assert len(messages) == 4  # 2 user + 2 assistant
 
 
-def test_get_messages_success(clean_app_state):
+def test_get_messages_success(client):
     """Test successfully retrieving messages."""
-    client = TestClient(app)
     create_response = client.post("/api/v1/chat/create")
     session_id = create_response.json()["session_id"]
     
@@ -218,9 +191,8 @@ def test_get_messages_success(clean_app_state):
     assert len(data["messages"]) == 4  # 2 user + 2 assistant
 
 
-def test_get_messages_with_limit(clean_app_state):
+def test_get_messages_with_limit(client):
     """Test retrieving messages with limit parameter."""
-    client = TestClient(app)
     create_response = client.post("/api/v1/chat/create")
     session_id = create_response.json()["session_id"]
     
@@ -240,9 +212,8 @@ def test_get_messages_with_limit(clean_app_state):
     assert len(data["messages"]) == 2  # Should return only 2 most recent
 
 
-def test_get_messages_nonexistent_session(clean_app_state):
+def test_get_messages_nonexistent_session(client):
     """Test retrieving messages from non-existent session."""
-    client = TestClient(app)
     fake_session_id = uuid4()
     
     response = client.get(f"/api/v1/chat/{fake_session_id}/messages")
@@ -251,9 +222,8 @@ def test_get_messages_nonexistent_session(clean_app_state):
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_get_messages_empty_conversation(clean_app_state):
+def test_get_messages_empty_conversation(client):
     """Test retrieving messages from empty conversation."""
-    client = TestClient(app)
     create_response = client.post("/api/v1/chat/create")
     session_id = create_response.json()["session_id"]
     
@@ -264,9 +234,8 @@ def test_get_messages_empty_conversation(clean_app_state):
     assert len(data["messages"]) == 0
 
 
-def test_get_messages_limit_validation(clean_app_state):
+def test_get_messages_limit_validation(client):
     """Test limit parameter validation."""
-    client = TestClient(app)
     create_response = client.post("/api/v1/chat/create")
     session_id = create_response.json()["session_id"]
     
@@ -278,3 +247,15 @@ def test_get_messages_limit_validation(clean_app_state):
     response = client.get(f"/api/v1/chat/{session_id}/messages?limit=101")
     assert response.status_code == 422
 
+
+def test_list_sessions(client, db_session):
+    """Test listing sessions via service."""
+    # Create a few sessions
+    client.post("/api/v1/chat/create")
+    client.post("/api/v1/chat/create")
+    
+    # Use service directly since we don't have an endpoint for listing sessions yet
+    # (Streamlit uses service directly)
+    sessions = chat_service.list_sessions(db_session)
+    assert len(sessions) == 2
+    assert isinstance(sessions[0].session_id, UUID)
