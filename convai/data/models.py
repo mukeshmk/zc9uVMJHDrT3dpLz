@@ -79,4 +79,33 @@ class Rating(Base):
     # Relationships
     user = relationship("User", back_populates="ratings")
     movie = relationship("Movie", back_populates="ratings")
-    
+
+
+class ChatSession(Base):
+    """
+    Model representing a chat session
+    """
+    __tablename__ = "chat_sessions"
+
+    session_id = Column(String(36), primary_key=True, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now())
+    last_active_at = Column(DateTime, default=lambda: datetime.now())
+
+    # Relationships
+    messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
+
+
+class ChatMessage(Base):
+    """
+    Model representing a message in a chat session
+    """
+    __tablename__ = "chat_messages"
+
+    message_id = Column(String(36), primary_key=True, index=True)
+    session_id = Column(String(36), ForeignKey("chat_sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String(20), nullable=False)  # 'user' or 'assistant'
+    content = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=lambda: datetime.now())
+
+    # Relationships
+    session = relationship("ChatSession", back_populates="messages")
