@@ -15,12 +15,9 @@ def format_history_for_llm(history: List[ChatMessage]) -> List[Dict[str, str]]:
     """
     Convert ChatMessage objects to LLM-compatible format
     """
-    formatted_history = []
+    formatted_history: list[dict[str, str]] = []
     for msg in history:
-        formatted_history.append({
-            "role": msg.role,
-            "content": msg.content
-        })
+        formatted_history.append({"role": msg.role, "content": msg.content})
     return formatted_history
 
 

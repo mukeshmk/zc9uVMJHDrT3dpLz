@@ -8,17 +8,18 @@ class GraphState(TypedDict):
     """
     State passed between agents in the LangGraph workflow.
     """
+
     # Input
     user_query: HumanMessage
 
     # Conversation History
     conversation_history: List[Dict[str, str]]
-    
+
     # Agent outputs
     route: str
     intent: Optional[IntentClassification]
     entities: Optional[ExtractedEntities]
     final_response: str
-    
+
     # Error handling
     error: Optional[str]
