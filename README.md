@@ -1,4 +1,4 @@
-# ConvAI - Conversational AI Movie Recommendation System
+# ConvAI - Conversational AI System
 
 A REST API for a conversational AI virtual agent that can answer questions about movies using the MovieLens dataset. The application uses a multi-agent LangGraph workflow to intelligently route, classify, and answer user queries about movies.
 

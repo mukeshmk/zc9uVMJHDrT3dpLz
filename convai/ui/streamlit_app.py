@@ -34,7 +34,7 @@ if not logger.handlers:
 
 
 @contextmanager
-def get_db_session():
+def get_db_session() -> Generator[Session, None, None]:
     """Provide a transactional scope around a series of operations."""
     db = SessionLocal()
     try:
@@ -63,7 +63,7 @@ def format_session_label(session_id: UUID, created_at: datetime, messages: list)
     return f"{preview}\n{time_str} • {msg_count} msgs"
 
 
-def initialize_session_state():
+def initialize_session_state() -> None:
     """Initialize Streamlit session state variables."""
     if "current_session_id" not in st.session_state:
         st.session_state.current_session_id = None
@@ -72,7 +72,7 @@ def initialize_session_state():
         st.session_state.awaiting_first_message = True
 
 
-def render_sidebar():
+def render_sidebar() -> None:
     """Render the sidebar with session management."""
     with st.sidebar:
         st.title("💬 Conversations")
@@ -126,7 +126,7 @@ def render_sidebar():
                 st.info("No conversations yet.\nStart a new chat!")
 
 
-def render_greeting():
+def render_greeting() -> None:
     """Render greeting screen for new users."""
     st.title("🎬 Movie Conversational AI")
 
