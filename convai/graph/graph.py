@@ -5,7 +5,13 @@ from langgraph.graph import StateGraph, END, START
 
 from convai.utils.config import settings
 from convai.graph.state import GraphState
-from convai.graph.nodes import SmartRouter, IntentExtractor, EntityExtractor, Agent
+from convai.graph.nodes import (
+    SmartRouter,
+    IntentExtractor,
+    EntityExtractor,
+    WeatherAgent,
+    Agent,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -15,7 +21,7 @@ class MovieAgentGraph:
     """
     LangGraph workflow orchestrating multiple agents for movie queries.
     """
-    
+
     def __init__(
         self,
         model_provider: str = settings.MODEL_PROVIDER,
@@ -24,59 +30,64 @@ class MovieAgentGraph:
     ):
         """
         Initialize the multi-agent graph workflow.
-        
+
         Args:
             model_provider: Model Provider information
             model_name: Which Model Provider's model to use
             temperature: LLM temperature setting
         """
 
-        logger.info(f"Initializing MovieAgentGraph with model={model_name}, provider={model_provider}, temperature={temperature}")
-        
+        logger.info(
+            f"Initializing MovieAgentGraph with model={model_name}, provider={model_provider}, temperature={temperature}"
+        )
+
         try:
             self.llm = init_chat_model(
-                model=model_name, 
+                model=model_name,
                 model_provider=model_provider,
-                temperature=temperature
+                temperature=temperature,
+                api_key=settings.API_KEY,
             )
             logger.debug(f"LLM initialized successfully: {model_name}")
         except Exception as e:
             logger.error(f"Failed to initialize LLM: {e}", exc_info=True)
             raise
-        
+
         logger.debug("Initializing graph agent")
         self.smart_router = SmartRouter(self.llm)
         self.intent_agent = IntentExtractor(self.llm)
         self.entity_agent = EntityExtractor(self.llm)
         self.tool_agent = Agent(self.llm)
+        self.weather_agent = WeatherAgent(self.llm)
         logger.debug("All agents initialized successfully")
-        
+
         logger.debug("Building graph workflow")
         self.graph = self._build_graph()
-        
+
         logger.info("Movie Agent Graph initialized successfully")
-    
+
     def _build_graph(self) -> StateGraph:
         """
         Build the LangGraph workflow.
-        
+
         Returns:
             Compiled StateGraph
         """
         logger.debug("Creating StateGraph builder")
 
         builder = StateGraph(GraphState)
-        
+
         builder.add_node("smart_router", self._smart_router_node)
         builder.add_node("intent_classification", self._intent_node)
         builder.add_node("entity_extraction", self._entity_node)
         builder.add_node("tool_calling_agent", self._agent_node)
         builder.add_node("error_handler", self._error_node)
         builder.add_node("ask_clarification", self._clarification_node)
-        
+        builder.add_node("weather_agent", self._weather_node)
+
         # START -> Smart Router Node
         builder.add_edge(START, "smart_router")
-        
+
         # Smart Router -> Intent Classification (conditional based need for clarification)
         builder.add_conditional_edges(
             "smart_router",
@@ -84,52 +95,47 @@ class MovieAgentGraph:
             {
                 "intent_classification": "intent_classification",
                 "ask_clarification": "ask_clarification",
-                "error": "error_handler"
-            }
+                "weather": "weather_agent",
+                "error": "error_handler",
+            },
         )
 
         # Smart Router -> END
         builder.add_edge("ask_clarification", END)
-        
+
         # Intent -> Entity (conditional based on errors)
         builder.add_conditional_edges(
             "intent_classification",
             self._check_for_errors,
-            {
-                "continue": "entity_extraction",
-                "error": "error_handler"
-            }
+            {"continue": "entity_extraction", "error": "error_handler"},
         )
-        
+
         # Entity -> Tool Calling Agent (conditional based on errors)
         builder.add_conditional_edges(
             "entity_extraction",
             self._check_for_errors,
-            {
-                "continue": "tool_calling_agent",
-                "error": "error_handler"
-            }
+            {"continue": "tool_calling_agent", "error": "error_handler"},
         )
-        
+
         # Tool Calling Agent -> END or error
         builder.add_conditional_edges(
             "tool_calling_agent",
             self._check_for_errors,
-            {
-                "continue": END,
-                "error": "error_handler"
-            }
+            {"continue": END, "error": "error_handler"},
         )
-        
+
+        # Weather Agent -> END
+        builder.add_edge("weather_agent", END)
+
         # Error handler -> END
         builder.add_edge("error_handler", END)
-        
+
         # Compile graph
         logger.debug("Compiling graph workflow")
         compiled_graph = builder.compile()
         logger.debug("Graph workflow compiled successfully")
         return compiled_graph
-    
+
     def _smart_router_node(self, state: GraphState) -> GraphState:
         """Execute Router node."""
         logger.info("Executing Router node")
@@ -139,32 +145,34 @@ class MovieAgentGraph:
         """Intent Classification node."""
         logger.info("Executing Intent Classification node")
         return self.intent_agent.classify_intent(state)
-    
+
     def _entity_node(self, state: GraphState) -> GraphState:
         """Entity Extraction node."""
         logger.info("Executing Entity Extraction node")
         return self.entity_agent.extract_entities(state)
-    
+
     def _agent_node(self, state: GraphState) -> GraphState:
         """Tool Calling Agent node."""
         logger.info("Executing Tool Calling Agent node")
         return self.tool_agent.generate_and_execute(state)
-    
+
     def _error_node(self, state: GraphState) -> GraphState:
         """Error Handling node."""
         logger.error(f"Error occurred: {state.get('error')}")
-        
-        error_response = f"I encountered an error processing your query: {state.get('error')}"
+
+        error_response = (
+            f"I encountered an error processing your query: {state.get('error')}"
+        )
         state["final_response"] = error_response
         return state
-    
+
     def _check_for_errors(self, state: GraphState) -> Literal["continue", "error"]:
         """
         Check if there are errors in the current state
-        
+
         Args:
             state: Current graph state
-            
+
         Returns:
             "continue" if no errors, "error" if errors present
         """
@@ -173,7 +181,7 @@ class MovieAgentGraph:
             return "error"
         logger.debug("No errors detected, continuing workflow")
         return "continue"
-    
+
     def _router_decision(self, state: GraphState) -> str:
         """
         Determine next node based on Router decision
@@ -189,21 +197,27 @@ class MovieAgentGraph:
         logger.info("Processing clarification request")
         clarification_message = state.get(
             "final_response",
-            "Please ask a question about movies. For example: 'What are the top-rated movies?' or 'Show me action movies'"
+            "Please ask a question about movies. For example: 'What are the top-rated movies?' or 'Show me action movies'",
         )
         state["final_response"] = clarification_message
         logger.debug(f"Clarification message set: {clarification_message}")
         return state
 
-    
-    def query(self, user_query: str, conversation_history: List[Dict[str, str]]) -> str:
+    async def _weather_node(self, state: GraphState) -> GraphState:
+        """Weather Agent node."""
+        logger.info("Executing Weather Agent node")
+        return await self.weather_agent.get_weather(state)
+
+    async def query(
+        self, user_query: str, conversation_history: List[Dict[str, str]]
+    ) -> str:
         """
         Process a user query through the multi-agent workflow.
-        
+
         Args:
             user_query: User's movie-related question
             conversation_history: User's previous coversation history with the agent
-            
+
         Returns:
             The final response based on the User's Query and Previous Coversation History
         """
@@ -217,22 +231,29 @@ class MovieAgentGraph:
             "final_response": None,
             "error": None,
         }
-        
+
         logger.info(f"Processing query: {user_query}")
-        logger.debug(f"Initial state: route={initial_state.get('route')}, intent={initial_state.get('intent')}, entities={initial_state.get('entities')}")
-        
+        logger.debug(
+            f"Initial state: route={initial_state.get('route')}, intent={initial_state.get('intent')}, entities={initial_state.get('entities')}"
+        )
+
         # Execute graph
         try:
-            final_state = self.graph.invoke(initial_state)
-            logger.debug(f"Graph execution completed. Final route: {final_state.get('route')}, Error: {final_state.get('error')}")
+            final_state = await self.graph.ainvoke(initial_state)
+            logger.debug(
+                f"Graph execution completed. Final route: {final_state.get('route')}, Error: {final_state.get('error')}"
+            )
         except Exception as e:
             logger.error(f"Error during graph execution: {e}", exc_info=True)
             raise
 
         logger.info("Query processing complete")
-        
+
         # Extract final response
         response = final_state.get("final_response", "")
-        logger.debug(f"Final response length: {len(response)} characters")
-        
+        if response:
+            logger.debug(f"Final response length: {len(response)} characters")
+        else:
+            logger.debug("Final response is empty or None")
+
         return response

@@ -7,10 +7,11 @@ Analyze the user query and decide whether to:
 
 ## Evaluation Criteria
 
-### Proceed to Intent Classification if:
-- The query is about movies, ratings, genres, actors, or entertainment preferences
-- The query is clear and unambiguous
-- The user is asking for specific information or recommendations
+### Proceed to Intent Classification
+ROUTING LOGIC:
+- If the user asks about movies, recommendations, genres, or specific films -> "intent_classification"
+- If the user asks about weather, forecasts, temperature, or alerts -> "weather"
+- If the user's query is unclear or unrelated to movies or weather -> "ask_clarification"
 - Examples: "What movies did Tom Hanks star in?", "Show me the top-rated sci-fi movies", "What genre is The Matrix?"
 
 ### Ask for Clarification if:
@@ -21,15 +22,17 @@ Analyze the user query and decide whether to:
 - Examples: "Tell me about it", "What?", "Help", or completely off-topic questions
 
 ## Output Requirements
-Format your response as a JSON object with these fields:
-- route: "intent_classification" OR "ask_clarification"
-- confidence: float between 0.0 and 1.0
+IMPORTANT: The confidence field must be a NUMBER (e.g., 0.9) NOT a string (e.g., "0.9").
+
+Format your response as structured output with these fields:
+- route: "intent_classification" OR "ask_clarification" OR "weather"
+- confidence: numeric value between 0.0 and 1.0 (NOT a quoted string)
 - reasoning: brief explanation
-- clarification_message: message to ask user if routing to ask_clarification, empty string otherwise>
+- clarification_message: message to ask user if routing to ask_clarification, empty string otherwise
 
 ## Guidelines
 - Be strict about movie-related queries—reject off-topic queries
 - If uncertain, ask for clarification rather than proceeding
 - Provide helpful, friendly clarification messages that guide users toward valid movie queries ONLY
 - Consider conversation history to understand context
-- Respond ONLY with the JSON object, no additional text
+- Respond ONLY with the structured output, no additional text

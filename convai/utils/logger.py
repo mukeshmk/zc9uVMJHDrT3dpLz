@@ -5,13 +5,13 @@ from typing import Optional
 from convai.utils.config import settings
 
 
-def _get_log_level(level: Optional[str]):
+def _get_log_level(level: Optional[str]) -> str | None:
     if level is None:
         return level
 
-    if level.lower() == 'info':
+    if level.lower() == "info":
         level = logging.INFO
-    elif level.lower() == 'debug':
+    elif level.lower() == "debug":
         level = logging.DEBUG
     else:
         level = logging.INFO
@@ -34,7 +34,7 @@ def setup_logs(logger):
     # Set the log level on the application logger
     logger.setLevel(cli_level)
     logger.propagate = False
-    
+
     # Console / Stream handler
     sh = logging.StreamHandler(sys.stdout)
     sh.setLevel(cli_level)
@@ -51,7 +51,7 @@ def setup_logs(logger):
     uvicorn_error.setLevel(cli_level)
     uvicorn_error.handlers = []
     uvicorn_error.addHandler(sh)
-    
+
     if log_file:
         fh = logging.FileHandler(log_file, mode="w")
         fh.setLevel(file_level)
@@ -59,7 +59,7 @@ def setup_logs(logger):
         logger.addHandler(fh)
         uvicorn_access.addHandler(fh)
         uvicorn_error.addHandler(fh)
-    
+
     return logger
 
 

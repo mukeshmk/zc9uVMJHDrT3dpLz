@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "convai"
-version = "0.1.0"
+version = "0.2.0"
 description = "a REST API for a conversational AI virtual agent that can answer questions about movies using an open movie dataset."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -20,3 +20,6 @@ dependencies = {file = ["requirements.txt"]}
 where = ["."]
 include = ["convai*"]
 exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+convai = ["prompts/*.prompt"]
